@@ -19,7 +19,11 @@ library
                        LN.Api.Ingest.CWE.Internal
                        LN.Api.Ingest.CWE.Types
   build-depends:       base >= 4.7 && < 5
+                     , aeson
+                     , bytestring
                      , lnotes-api
+                     , lnotes-sanitize
+                     , lnotes-validate
                      , haskell-lnotes-types
                      , haskell-api-helpers
                      , haskell-api-helpers-shared

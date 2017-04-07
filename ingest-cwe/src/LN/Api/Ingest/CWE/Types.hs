@@ -1,13 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module LN.Api.Ingest.CWE.Types (
-  CWE (..)
+  CWE (..),
+  CWE_Category (..),
+  CWE_Weakness (..),
+  CWE_Description (..),
 ) where
 
 
 
 import           Data.Aeson
-import qualified Data.HashMap.Strict as HM
+import qualified Data.HashMap.Strict  as HM
 import           Data.Text
 import           Data.Typeable
 import           GHC.Generics
@@ -132,4 +135,4 @@ instance FromJSON CWE_Description where
 
 
 fixText :: Text -> Text
-fixText = replace "\n\t\t\t\t\t" " " . replace "\n\t\t\t\t\t" " "
+fixText = replace "\t" "" . replace "\n\t\t\t\t\t" " " . replace "\n\t\t\t\t\t" " "
