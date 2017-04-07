@@ -14,9 +14,11 @@ import           Data.Aeson
 import           Data.ByteString            (ByteString)
 import qualified Data.ByteString.Lazy       as B
 import           Data.Int                   (Int64)
+import           Data.Maybe                 (catMaybes)
 import           Data.Monoid                ((<>))
 import           Data.String.Conversions    (cs)
 import           Data.Text
+import qualified Data.Text                  as Text
 import           Haskell.Api.Helpers        (SpecificApiOptions, defaultSpecificApiOptions)
 import           Haskell.Api.Helpers.Shared (ApiError (..), ApiOptions (..),
                                              runWith)
@@ -42,11 +44,16 @@ cwePostDescriptions :: Text -> ByteString -> Int64 -> CWE -> IO ()
 cwePostDescriptions api_url api_key resource_id CWE{..} = do
   forM_ weaknesses $ \weakness@CWE_Weakness{..} -> do
     let
-      ln_data = case descriptionExtended weaknessDescription of
-                  Just extended -> LnDCard $ DCard weaknessName ("Summary:\n"<>(descriptionSummary weaknessDescription)<>"\n\nExtended:\n"<>extended)
-                  Nothing       -> LnDCard $ DCard weaknessName (descriptionSummary weaknessDescription)
+      body_summary = Just $ "Summary:\n" <> descriptionSummary weaknessDescription
+      body_extended = case descriptionExtended weaknessDescription of
+                  Just extended -> Just $ "Extended:\n" <> extended
+                  _             -> Nothing
+      platforms = case weaknessPlatforms of
+                    [] -> Nothing
+                    _  -> Just $ "Platforms:\n" <> (Text.intercalate "," $ Prelude.map platformName weaknessPlatforms)
+      ln_data = LnDCard $ DCard weaknessName $ Text.intercalate "\n\n" $ catMaybes [body_summary, body_extended, platforms]
 
-      tags = [toSafeUrl weaknessName]
+      tags = [toSafeUrl weaknessName, "ctx-description"]
       leuron_req = defaultLeuronRequest {
         leuronRequestData = ln_data,
         leuronRequestTags = tags

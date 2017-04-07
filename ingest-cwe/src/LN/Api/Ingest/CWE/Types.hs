@@ -5,6 +5,7 @@ module LN.Api.Ingest.CWE.Types (
   CWE_Category (..),
   CWE_Weakness (..),
   CWE_Description (..),
+  CWE_Platform (..)
 ) where
 
 
@@ -43,7 +44,8 @@ data CWE_Weakness = CWE_Weakness {
   weaknessStatus      :: Text,
   weaknessID          :: Text,
   weaknessName        :: Text,
-  weaknessDescription :: CWE_Description
+  weaknessDescription :: CWE_Description,
+  weaknessPlatforms   :: [CWE_Platform]
 } deriving (Eq, Show, Read, Generic, Typeable)
 
 
@@ -51,6 +53,12 @@ data CWE_Weakness = CWE_Weakness {
 data CWE_Description = CWE_Description {
   descriptionSummary  :: Text,
   descriptionExtended :: Maybe Text
+} deriving (Eq, Show, Read, Generic, Typeable)
+
+
+
+data CWE_Platform = CWE_Platform {
+  platformName  :: Text
 } deriving (Eq, Show, Read, Generic, Typeable)
 
 
@@ -107,12 +115,28 @@ instance FromJSON CWE_Weakness where
     id          <- o .: "@ID"
     name        <- o .: "@Name"
     desc        <- o .: "Description"
+    platforms   <- case HM.lookup "Applicable_Platforms" o of
+                        Just (Object o2) -> do
+                          case HM.lookup "Languages" o2 of
+                               Just (Object o3) -> case (HM.lookup "Language" o3, HM.lookup "Language_Class" o3) of
+                                                        (Just o4@(Object _), _)  -> do
+                                                          p <- parseJSON o4
+                                                          pure [p]
+                                                        (Just o4@(Array _), _) -> parseJSON o4
+                                                        (Nothing, Just o5@(Object _)) -> do
+                                                                    p <- parseJSON o5
+                                                                    pure [p]
+                                                        (Nothing, Just o5@(Array _)) -> parseJSON o5
+                                                        _       -> fail "CWE:weakness:languages:language_class"
+                               _ -> pure []
+                        _                -> pure []
     pure $ CWE_Weakness {
       weaknessAbstraction = abstraction,
       weaknessStatus = status,
       weaknessID = id,
       weaknessName = name,
-      weaknessDescription = desc
+      weaknessDescription = desc,
+      weaknessPlatforms = platforms
     }
 
 
@@ -131,6 +155,23 @@ instance FromJSON CWE_Description where
       descriptionSummary  = summary,
       descriptionExtended = extended
     }
+
+
+
+instance FromJSON CWE_Platform where
+  parseJSON = withObject "platform" $ \o -> do
+    m_name <- o .:? "@Language_Name"
+    m_class <- o .:? "@Language_Class_Description"
+    case (m_name, m_class) of
+      (Just name, _) ->
+        pure $ CWE_Platform {
+          platformName = name
+        }
+      (Nothing, Just class_) ->
+        pure $ CWE_Platform {
+          platformName = class_
+        }
+      _ -> pure $ CWE_Platform "unknown"
 
 
 
