@@ -4,10 +4,10 @@ module LN.Api.Ingest.CWE.Internal (
 
 
 
-import Data.Aeson
-import qualified Data.ByteString.Lazy as B
+import           Data.Aeson
+import qualified Data.ByteString.Lazy    as B
 
-import LN.Api.Ingest.CWE.Types
+import           LN.Api.Ingest.CWE.Types
 
 
 

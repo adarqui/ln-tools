@@ -15,19 +15,19 @@ import           GHC.Generics
 
 
 data CWE = CWE {
-  catalogDate :: Text,
+  catalogDate    :: Text,
   catalogVersion :: Text,
-  catalogName :: Text,
-  categories :: [CWE_Category],
-  weaknesses :: [CWE_Weakness]
+  catalogName    :: Text,
+  categories     :: [CWE_Category],
+  weaknesses     :: [CWE_Weakness]
 } deriving (Eq, Show, Read, Generic, Typeable)
 
 
 
 data CWE_Category = CWE_Category {
-  categoryStatus :: Text,
-  categoryID :: Text,
-  categoryName :: Text,
+  categoryStatus      :: Text,
+  categoryID          :: Text,
+  categoryName        :: Text,
   categoryDescription :: CWE_Description
   -- categoryApplicationPlatform
   -- categoryTimeOfIntroduction
@@ -37,17 +37,17 @@ data CWE_Category = CWE_Category {
 
 data CWE_Weakness = CWE_Weakness {
   weaknessAbstraction :: Text,
-  weaknessStatus :: Text,
-  weaknessID :: Text,
-  weaknessName :: Text,
+  weaknessStatus      :: Text,
+  weaknessID          :: Text,
+  weaknessName        :: Text,
   weaknessDescription :: CWE_Description
 } deriving (Eq, Show, Read, Generic, Typeable)
 
 
 
 data CWE_Description = CWE_Description {
-  descriptionSummary   :: Text,
-  descriptionExtended  :: Maybe Text
+  descriptionSummary  :: Text,
+  descriptionExtended :: Maybe Text
 } deriving (Eq, Show, Read, Generic, Typeable)
 
 
