@@ -67,20 +67,40 @@ findDollars contents = go (Text.lines contents) []
 -- I'm just doing crazy stuff tonight.
 --
 fixText :: [Text] -> Text
-fixText text = san5
+fixText text = san7
   where
   san1 = P.map P.head $ List.groupBy (\x y -> x == y && Text.null x) text
   san2 = List.foldl' (\acc s -> go acc s) "" san1
   san4 = Text.unlines $ P.map P.head $ List.groupBy (\x y -> x == y && Text.null x) $ Text.lines san2
   san5 = Text.dropWhileEnd (=='\n') san4
+  san6 = Text.pack $ List.unlines $ P.map (List.unwords . List.words) $ List.lines $ Text.unpack san5
+  san7 = Text.dropWhileEnd (=='\n') san6
   go acc s =
     case (Text.null acc, s) of
-         (True, _) -> s
+         (True, _) -> s <> " "
          (_, "")   -> acc <> "\n\n"
          _         ->
            if Text.last s == '.' || Text.last s == ':'
               then acc <> s <> "\n"
               else acc <> s <> " "
+
+
+
+fixText' :: [Text] -> Text
+fixText' text =
+  List.foldl' go "__initial__" l
+  where
+  l = P.map P.head $ List.groupBy (\a b -> a == b && Text.null a) text
+  go acc s = case acc of
+                  "__initial__" -> s
+                  _ ->
+                    if Text.null (Text.replace " " "" s)
+                       then acc <> "\n\n"
+                       else case (Text.uncons $ Text.reverse acc) of
+                                 Nothing       -> acc <> " " <> s
+                                 Just (h, t) -> if h == '\n'
+                                                   then acc <> s
+                                                   else acc <> " " <> s
 
 
 
