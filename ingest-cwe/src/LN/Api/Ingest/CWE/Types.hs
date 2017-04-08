@@ -80,9 +80,9 @@ data CWE_TimeOfIntroduction = CWE_TimeOfIntroduction {
 
 
 data CWE_Consequence = CWE_Consequence {
-  consequenceScope :: [CWE_BangTextField],
+  consequenceScope           :: [CWE_BangTextField],
   consequenceTechnicalImpact :: [CWE_BangTextField],
-  consequenceNotes :: [CWE_BangTextField]
+  consequenceNotes           :: [CWE_BangTextField]
 } deriving (Eq, Show, Read, Generic, Typeable)
 
 
