@@ -7,6 +7,7 @@ module LN.Api.Ingest.CWE.Types (
   CWE_Description (..),
   CWE_Platform (..),
   CWE_Consequence (..),
+  CWE_BangTextField (..),
   CWE_TextField (..),
   CWE_TermField (..)
 ) where
@@ -15,6 +16,7 @@ module LN.Api.Ingest.CWE.Types (
 
 import           Data.Aeson
 import qualified Data.HashMap.Strict as HM
+import           Data.Monoid
 import           Data.Text
 import           Data.Typeable
 import           GHC.Generics
@@ -51,7 +53,8 @@ data CWE_Weakness = CWE_Weakness {
   weaknessPlatforms          :: [CWE_Platform],
   weaknessTimeOfIntroduction :: [CWE_TimeOfIntroduction],
   weaknessConsequences       :: Maybe CWE_Consequence,
-  weaknessAlternateTerms     :: [CWE_TermField]
+  weaknessAlternateTerms     :: [CWE_TermField],
+  weaknessTerminologyNotes   :: [CWE_TextField]
 } deriving (Eq, Show, Read, Generic, Typeable)
 
 
@@ -76,15 +79,21 @@ data CWE_TimeOfIntroduction = CWE_TimeOfIntroduction {
 
 
 data CWE_Consequence = CWE_Consequence {
-  consequenceScope :: [CWE_TextField],
-  consequenceTechnicalImpact :: [CWE_TextField],
-  consequenceNotes :: [CWE_TextField]
+  consequenceScope :: [CWE_BangTextField],
+  consequenceTechnicalImpact :: [CWE_BangTextField],
+  consequenceNotes :: [CWE_BangTextField]
+} deriving (Eq, Show, Read, Generic, Typeable)
+
+
+
+data CWE_BangTextField = CWE_BangTextField {
+  bangText :: Maybe Text
 } deriving (Eq, Show, Read, Generic, Typeable)
 
 
 
 data CWE_TextField = CWE_TextField {
-  text :: Maybe Text
+  text :: Text
 } deriving (Eq, Show, Read, Generic, Typeable)
 
 
@@ -182,10 +191,26 @@ instance FromJSON CWE_Weakness where
     alternate <- case HM.lookup "Alternate_Terms" o of
                       Just (Object o2) -> do
                         case HM.lookup "Alternate_Term" o2 of
-                             Just o4@(Object _) -> do
-                               p <- parseJSON o4
-                               pure [p]
-                             Just o4@(Array _) -> parseJSON o4
+                             Just (Object o3) ->
+                               case HM.lookup "Term" o3 of
+                                 Just o4@(Object _) -> do
+                                   p <- parseJSON o4
+                                   pure [p]
+                                 Just o4@(Array _) -> parseJSON o4
+                                 _ -> pure []
+                             _ -> pure []
+                      _ -> pure []
+
+    termnotes <- case HM.lookup "Terminology_Notes" o of
+                      Just (Object o2) -> do
+                        case HM.lookup "Terminology_Note" o2 of
+                             Just (Object o3) ->
+                               case HM.lookup "Text" o3 of
+                                 Just o4@(Object _) -> do
+                                   p <- parseJSON o4
+                                   pure [p]
+                                 Just o4@(Array _) -> parseJSON o4
+                                 _ -> pure []
                              _ -> pure []
                       _ -> pure []
 
@@ -198,7 +223,8 @@ instance FromJSON CWE_Weakness where
       weaknessPlatforms = platforms,
       weaknessTimeOfIntroduction = time_of_intro,
       weaknessConsequences = consequences,
-      weaknessAlternateTerms = alternate
+      weaknessAlternateTerms = alternate,
+      weaknessTerminologyNotes = termnotes
     }
 
 
@@ -277,20 +303,24 @@ instance FromJSON CWE_Consequence where
 
 
 
+instance FromJSON CWE_BangTextField where
+  parseJSON = withObject "bang_text_field" $ \o -> do
+    m_text <- o .:? "#text" >>= pure . (<$>) fixText
+    pure $ CWE_BangTextField m_text
+
+
+
 instance FromJSON CWE_TextField where
   parseJSON = withObject "text_field" $ \o -> do
-    m_text <- o .:? "#text" >>= pure . (<$>) fixText
-    pure $ CWE_TextField m_text
+    text <- o .: "#text" >>= pure . fixText
+    pure $ CWE_TextField text
 
 
 
 instance FromJSON CWE_TermField where
   parseJSON = withObject "term_field" $ \o -> do
-    case HM.lookup "Term" o of
-      Just (Object o2) -> do
-        term <- o2 .: "#text" >>= pure . fixText
-        pure $ CWE_TermField term
-      _ -> fail "term_field"
+    term <- o .: "#text" >>= pure . fixText
+    pure $ CWE_TermField term
 
 
 
