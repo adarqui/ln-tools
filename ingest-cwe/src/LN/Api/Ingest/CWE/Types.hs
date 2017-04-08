@@ -5,7 +5,10 @@ module LN.Api.Ingest.CWE.Types (
   CWE_Category (..),
   CWE_Weakness (..),
   CWE_Description (..),
-  CWE_Platform (..)
+  CWE_Platform (..),
+  CWE_Consequence (..),
+  CWE_TextField (..),
+  CWE_TermField (..)
 ) where
 
 
@@ -46,7 +49,9 @@ data CWE_Weakness = CWE_Weakness {
   weaknessName               :: Text,
   weaknessDescription        :: CWE_Description,
   weaknessPlatforms          :: [CWE_Platform],
-  weaknessTimeOfIntroduction :: [CWE_TimeOfIntroduction]
+  weaknessTimeOfIntroduction :: [CWE_TimeOfIntroduction],
+  weaknessConsequences       :: Maybe CWE_Consequence,
+  weaknessAlternateTerms     :: [CWE_TermField]
 } deriving (Eq, Show, Read, Generic, Typeable)
 
 
@@ -66,6 +71,26 @@ data CWE_Platform = CWE_Platform {
 
 data CWE_TimeOfIntroduction = CWE_TimeOfIntroduction {
   timeOfIntroduction :: Text
+} deriving (Eq, Show, Read, Generic, Typeable)
+
+
+
+data CWE_Consequence = CWE_Consequence {
+  consequenceScope :: [CWE_TextField],
+  consequenceTechnicalImpact :: [CWE_TextField],
+  consequenceNotes :: [CWE_TextField]
+} deriving (Eq, Show, Read, Generic, Typeable)
+
+
+
+data CWE_TextField = CWE_TextField {
+  text :: Maybe Text
+} deriving (Eq, Show, Read, Generic, Typeable)
+
+
+
+data CWE_TermField = CWE_TermField {
+  term :: Text
 } deriving (Eq, Show, Read, Generic, Typeable)
 
 
@@ -146,6 +171,24 @@ instance FromJSON CWE_Weakness where
                                  Just o4@(Array _) -> parseJSON o4
                                  _       -> fail "CWE:weakness:time_of_inroduction:language_class"
                           _                -> pure []
+
+    consequences <- case HM.lookup "Common_Consequences" o of
+                          Just (Object o2) -> do
+                            case HM.lookup "Common_Consequence" o2 of
+                                 Just o4@(Object _)  -> parseJSON o4 >>= pure . Just
+                                 _ -> pure Nothing
+                          _                -> pure Nothing
+
+    alternate <- case HM.lookup "Alternate_Terms" o of
+                      Just (Object o2) -> do
+                        case HM.lookup "Alternate_Term" o2 of
+                             Just o4@(Object _) -> do
+                               p <- parseJSON o4
+                               pure [p]
+                             Just o4@(Array _) -> parseJSON o4
+                             _ -> pure []
+                      _ -> pure []
+
     pure $ CWE_Weakness {
       weaknessAbstraction = abstraction,
       weaknessStatus = status,
@@ -153,7 +196,9 @@ instance FromJSON CWE_Weakness where
       weaknessName = name,
       weaknessDescription = desc,
       weaknessPlatforms = platforms,
-      weaknessTimeOfIntroduction = time_of_intro
+      weaknessTimeOfIntroduction = time_of_intro,
+      weaknessConsequences = consequences,
+      weaknessAlternateTerms = alternate
     }
 
 
@@ -198,6 +243,54 @@ instance FromJSON CWE_TimeOfIntroduction where
     pure $ CWE_TimeOfIntroduction {
       timeOfIntroduction = name
     }
+
+
+
+
+instance FromJSON CWE_Consequence where
+  parseJSON = withObject "consequence" $ \o -> do
+    scope <- case HM.lookup "Consequence_Scope" o of
+                  Just o4@(Object _)  -> do
+                    p <- parseJSON o4
+                    pure [p]
+                  Just o4@(Array _) -> parseJSON o4
+                  _       -> pure [] -- fail "CWE:consequence:scope"
+    impact <- case HM.lookup "Consequence_Technical_Impact" o of
+                  Just o4@(Object _)  -> do
+                    p <- parseJSON o4
+                    pure [p]
+                  Just o4@(Array _) -> parseJSON o4
+                  _       -> pure [] -- fail "CWE:consequence:technical_impact"
+    notes <- case HM.lookup "Consequence_Note" o of
+                  Just (Object o2) -> case HM.lookup "Text" o2 of
+                                           Just o4@(Object _) -> do
+                                             p <- parseJSON o4
+                                             pure [p]
+                                           Just o4@(Array _) -> parseJSON o4
+                                           _ -> pure [] -- fail "CWE:consequence:note:Text"
+                  _ -> pure [] -- fail "CWE:consequence:note"
+    pure $ CWE_Consequence {
+      consequenceScope = scope,
+      consequenceTechnicalImpact = impact,
+      consequenceNotes = notes
+    }
+
+
+
+instance FromJSON CWE_TextField where
+  parseJSON = withObject "text_field" $ \o -> do
+    m_text <- o .:? "#text" >>= pure . (<$>) fixText
+    pure $ CWE_TextField m_text
+
+
+
+instance FromJSON CWE_TermField where
+  parseJSON = withObject "term_field" $ \o -> do
+    case HM.lookup "Term" o of
+      Just (Object o2) -> do
+        term <- o2 .: "#text" >>= pure . fixText
+        pure $ CWE_TermField term
+      _ -> fail "term_field"
 
 
 
