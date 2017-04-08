@@ -5,7 +5,8 @@ module LN.Api.Ingest.CWE.Internal (
   parseCWE,
   cwePostDescriptions,
   cwePostTimeOfIntroduction,
-  cwePostConsequences
+  cwePostConsequences,
+  cwePostTerms
 ) where
 
 
@@ -84,6 +85,21 @@ weaknessToTimeOfIntroductionBody weakness@CWE_Weakness{..} = Text.intercalate "\
 
 
 
+weaknessToTermsBody :: CWE_Weakness -> Maybe Text
+weaknessToTermsBody weakness@CWE_Weakness{..} =
+  case catMaybes [body_alternate, body_notes] of
+    [] -> Nothing
+    xs -> Just $ Text.intercalate "\n\n" xs
+  where
+  body_alternate = case Prelude.map term weaknessAlternateTerms of
+    [] -> Nothing
+    xs -> Just $ "Alternate Terms:\n" <> (Text.intercalate "\n " xs)
+  body_notes = case Prelude.map text weaknessTerminologyNotes of
+    [] -> Nothing
+    xs -> Just $ "TerminologyNotes:\n" <> (Text.intercalate "\n " xs)
+
+
+
 cwePostDescriptions :: Text -> ByteString -> Int64 -> CWE -> IO ()
 cwePostDescriptions api_url api_key resource_id CWE{..} = do
   forM_ weaknesses $ \weakness@CWE_Weakness{..} -> do
@@ -126,6 +142,26 @@ cwePostConsequences api_url api_key resource_id CWE{..} = do
           ln_data = LnCard $ Card ("CONSEQUENCES: " <> weaknessName) body
 
           tags = [toSafeUrl weaknessName, "ctx-consequences"]
+          leuron_req = defaultLeuronRequest {
+            leuronRequestData = ln_data,
+            leuronRequestTags = tags
+          }
+        lr <- runWith (postLeuron_ByResourceId' resource_id leuron_req) defaultApiOpts { apiKey = Just api_key, apiUrl = api_url }
+        print lr
+
+
+
+
+cwePostTerms :: Text -> ByteString -> Int64 -> CWE -> IO ()
+cwePostTerms api_url api_key resource_id CWE{..} = do
+  forM_  weaknesses $ \weakness@CWE_Weakness{..} -> do
+    case weaknessToTermsBody weakness of
+      Nothing -> pure ()
+      Just body -> do
+        let
+          ln_data = LnCard $ Card ("TERMS: " <> weaknessName) body
+
+          tags = [toSafeUrl weaknessName, "ctx-terms"]
           leuron_req = defaultLeuronRequest {
             leuronRequestData = ln_data,
             leuronRequestTags = tags
