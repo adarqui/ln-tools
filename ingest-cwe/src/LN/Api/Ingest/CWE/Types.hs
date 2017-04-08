@@ -11,7 +11,7 @@ module LN.Api.Ingest.CWE.Types (
 
 
 import           Data.Aeson
-import qualified Data.HashMap.Strict  as HM
+import qualified Data.HashMap.Strict as HM
 import           Data.Text
 import           Data.Typeable
 import           GHC.Generics
@@ -40,12 +40,13 @@ data CWE_Category = CWE_Category {
 
 
 data CWE_Weakness = CWE_Weakness {
-  weaknessAbstraction :: Text,
-  weaknessStatus      :: Text,
-  weaknessID          :: Text,
-  weaknessName        :: Text,
-  weaknessDescription :: CWE_Description,
-  weaknessPlatforms   :: [CWE_Platform]
+  weaknessAbstraction        :: Text,
+  weaknessStatus             :: Text,
+  weaknessID                 :: Text,
+  weaknessName               :: Text,
+  weaknessDescription        :: CWE_Description,
+  weaknessPlatforms          :: [CWE_Platform],
+  weaknessTimeOfIntroduction :: [CWE_TimeOfIntroduction]
 } deriving (Eq, Show, Read, Generic, Typeable)
 
 
@@ -58,7 +59,13 @@ data CWE_Description = CWE_Description {
 
 
 data CWE_Platform = CWE_Platform {
-  platformName  :: Text
+  platformName :: Text
+} deriving (Eq, Show, Read, Generic, Typeable)
+
+
+
+data CWE_TimeOfIntroduction = CWE_TimeOfIntroduction {
+  timeOfIntroduction :: Text
 } deriving (Eq, Show, Read, Generic, Typeable)
 
 
@@ -130,13 +137,23 @@ instance FromJSON CWE_Weakness where
                                                         _       -> fail "CWE:weakness:languages:language_class"
                                _ -> pure []
                         _                -> pure []
+    time_of_intro <- case HM.lookup "Time_of_Introduction" o of
+                          Just (Object o2) -> do
+                            case HM.lookup "Introductory_Phase" o2 of
+                                 Just o4@(Object _)  -> do
+                                   p <- parseJSON o4
+                                   pure [p]
+                                 Just o4@(Array _) -> parseJSON o4
+                                 _       -> fail "CWE:weakness:time_of_inroduction:language_class"
+                          _                -> pure []
     pure $ CWE_Weakness {
       weaknessAbstraction = abstraction,
       weaknessStatus = status,
       weaknessID = id,
       weaknessName = name,
       weaknessDescription = desc,
-      weaknessPlatforms = platforms
+      weaknessPlatforms = platforms,
+      weaknessTimeOfIntroduction = time_of_intro
     }
 
 
@@ -172,6 +189,15 @@ instance FromJSON CWE_Platform where
           platformName = class_
         }
       _ -> pure $ CWE_Platform "unknown"
+
+
+
+instance FromJSON CWE_TimeOfIntroduction where
+  parseJSON = withObject "time_of_introduction" $ \o -> do
+    name <- o .: "#text"
+    pure $ CWE_TimeOfIntroduction {
+      timeOfIntroduction = name
+    }
 
 
 
