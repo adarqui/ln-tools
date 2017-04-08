@@ -1,0 +1,56 @@
+name:                ingest-rfc4949
+version:             0.1.0.0
+-- synopsis:
+-- description:
+homepage:            https://github.com/adarqui/ingest-rfc4949#readme
+license:             BSD3
+license-file:        LICENSE
+author:              Andrew Darqui
+maintainer:          andrew.darqui@gmail.com
+copyright:           2016 Andrew Darqui
+category:            Development
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     LN.Api.Ingest.RFC4949
+                       LN.Api.Ingest.RFC4949.Internal
+                       LN.Api.Ingest.RFC4949.Types
+  build-depends:       base >= 4.7 && < 5
+                     , aeson
+                     , bytestring
+                     , lnotes-api
+                     , lnotes-sanitize
+                     , lnotes-validate
+                     , haskell-lnotes-types
+                     , haskell-api-helpers
+                     , haskell-api-helpers-shared
+                     , haskell-rehtie
+                     , hxt
+                     , HandsomeSoup
+                     , text
+                     , unordered-containers
+  default-language:    Haskell2010
+
+executable ingest-rfc4949-exe
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , ingest-rfc4949
+  default-language:    Haskell2010
+
+test-suite ingest-rfc4949-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  build-depends:       base
+                     , ingest-rfc4949
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/adarqui/ingest-rfc4949
