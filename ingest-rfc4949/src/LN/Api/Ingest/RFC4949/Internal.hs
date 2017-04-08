@@ -58,7 +58,7 @@ findDollars contents = go (Text.lines contents) []
       block_length = P.length block
     in
       if block_length <= 0
-        then P.reverse accum
+        then go xs accum
         else go (P.drop block_length xs) $ (Entry (Text.drop 5 x) $ fixText block) : accum
 
 
@@ -67,17 +67,18 @@ findDollars contents = go (Text.lines contents) []
 -- I'm just doing crazy stuff tonight.
 --
 fixText :: [Text] -> Text
-fixText text = san3
+fixText text = san5
   where
-  san1 = {-List.nubBy (\x y -> x == y && Text.null x) $-} P.map P.head $ List.groupBy (\x y -> x == y && Text.null x) text
+  san1 = P.map P.head $ List.groupBy (\x y -> x == y && Text.null x) text
   san2 = List.foldl' (\acc s -> go acc s) "" san1
-  san3 = Text.dropWhileEnd (=='\n') san2
+  san4 = Text.unlines $ P.map P.head $ List.groupBy (\x y -> x == y && Text.null x) $ Text.lines san2
+  san5 = Text.dropWhileEnd (=='\n') san4
   go acc s =
     case (Text.null acc, s) of
          (True, _) -> s
          (_, "")   -> acc <> "\n\n"
          _         ->
-           if Text.last s == '.'
+           if Text.last s == '.' || Text.last s == ':'
               then acc <> s <> "\n"
               else acc <> s <> " "
 
