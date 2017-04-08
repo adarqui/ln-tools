@@ -7,6 +7,7 @@ module LN.Api.Ingest.CWE.Types (
   CWE_Description (..),
   CWE_Platform (..),
   CWE_Consequence (..),
+  CWE_TimeOfIntroduction (..),
   CWE_BangTextField (..),
   CWE_TextField (..),
   CWE_TermField (..)

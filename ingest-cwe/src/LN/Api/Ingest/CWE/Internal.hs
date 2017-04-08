@@ -3,7 +3,9 @@
 
 module LN.Api.Ingest.CWE.Internal (
   parseCWE,
-  cwePostDescriptions
+  cwePostDescriptions,
+  cwePostTimeOfIntroduction,
+  cwePostConsequences
 ) where
 
 
@@ -40,18 +42,29 @@ parseCWE path = do
 
 
 
+weaknessToDescriptionBody :: CWE_Weakness -> Text
+weaknessToDescriptionBody weakness@CWE_Weakness{..} = Text.intercalate "\n\n" $ catMaybes [body_summary, body_extended, platforms]
+  where
+  body_summary = Just $ "Summary:\n" <> descriptionSummary weaknessDescription
+  body_extended = case descriptionExtended weaknessDescription of
+              Just extended -> Just $ "Extended:\n" <> extended
+              _             -> Nothing
+  platforms = case weaknessPlatforms of
+                [] -> Nothing
+                _  -> Just $ "Platforms:\n" <> (Text.intercalate "," $ Prelude.map platformName weaknessPlatforms)
+
+
+
+weaknessToTimeOfIntroductionBody :: CWE_Weakness -> Text
+weaknessToTimeOfIntroductionBody weakness@CWE_Weakness{..} = Text.intercalate "\n" $ Prelude.map timeOfIntroduction weaknessTimeOfIntroduction
+
+
+
 cwePostDescriptions :: Text -> ByteString -> Int64 -> CWE -> IO ()
 cwePostDescriptions api_url api_key resource_id CWE{..} = do
   forM_ weaknesses $ \weakness@CWE_Weakness{..} -> do
     let
-      body_summary = Just $ "Summary:\n" <> descriptionSummary weaknessDescription
-      body_extended = case descriptionExtended weaknessDescription of
-                  Just extended -> Just $ "Extended:\n" <> extended
-                  _             -> Nothing
-      platforms = case weaknessPlatforms of
-                    [] -> Nothing
-                    _  -> Just $ "Platforms:\n" <> (Text.intercalate "," $ Prelude.map platformName weaknessPlatforms)
-      ln_data = LnDCard $ DCard weaknessName $ Text.intercalate "\n\n" $ catMaybes [body_summary, body_extended, platforms]
+      ln_data = LnDCard $ DCard weaknessName (weaknessToDescriptionBody weakness)
 
       tags = [toSafeUrl weaknessName, "ctx-description"]
       leuron_req = defaultLeuronRequest {
@@ -60,6 +73,23 @@ cwePostDescriptions api_url api_key resource_id CWE{..} = do
       }
     lr <- runWith (postLeuron_ByResourceId' resource_id leuron_req) defaultApiOpts { apiKey = Just api_key, apiUrl = api_url }
     print lr
+
+
+
+cwePostTimeOfIntroduction :: Text -> ByteString -> Int64 -> CWE -> IO ()
+cwePostTimeOfIntroduction api_url api_key resource_id CWE{..} = do
+  forM_ (Prelude.filter (not . Prelude.null . weaknessTimeOfIntroduction) weaknesses) $ \weakness@CWE_Weakness{..} -> do
+    let
+      ln_data = LnCard $ Card ("TIME_OF_INTRODUCTION: " <> weaknessName) (weaknessToTimeOfIntroductionBody weakness)
+
+      tags = [toSafeUrl weaknessName, "ctx-time-of-introduction"]
+      leuron_req = defaultLeuronRequest {
+        leuronRequestData = ln_data,
+        leuronRequestTags = tags
+      }
+    lr <- runWith (postLeuron_ByResourceId' resource_id leuron_req) defaultApiOpts { apiKey = Just api_key, apiUrl = api_url }
+    print lr
+
 
 
 defaultApiOpts :: ApiOptions SpecificApiOptions
