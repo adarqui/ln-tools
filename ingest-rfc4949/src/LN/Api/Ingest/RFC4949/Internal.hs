@@ -3,17 +3,32 @@
 module LN.Api.Ingest.RFC4949.Internal (
   parseEntries,
   readTextFile,
-  findDollars
+  findDollars,
+  rfcPostEntries
 ) where
 
 
 
+import           Control.Monad
+import           Control.Monad.IO.Class     (MonadIO, liftIO)
+import           Data.ByteString            (ByteString)
+import qualified Data.ByteString.Lazy       as B
+import           Data.Int                   (Int64)
+import qualified Data.List                  as List
+import           Data.Maybe                 (catMaybes)
 import           Data.Monoid
 import           Data.Text
 import qualified Data.Text as Text
 import qualified Data.Text.IO                as TIO
 import           Prelude
 import qualified Prelude as P
+
+import           Haskell.Api.Helpers        (SpecificApiOptions, defaultSpecificApiOptions)
+import           Haskell.Api.Helpers.Shared (ApiError (..), ApiOptions (..), runWith)
+import           LN.Api
+import           LN.Generate.Default
+import           LN.Sanitize.Internal
+import           LN.T
 
 import           LN.Api.Ingest.RFC4949.Types
 
@@ -22,9 +37,7 @@ import           LN.Api.Ingest.RFC4949.Types
 parseEntries :: FilePath -> IO [Entry]
 parseEntries path = do
   contents <- readTextFile path
---  TIO.putStrLn contents
-  let dollars = findDollars contents
-  pure []
+  pure $ findDollars contents
 
 
 
@@ -41,9 +54,57 @@ findDollars contents = go (Text.lines contents) []
   go [] accum = P.reverse accum
   go (x:xs) accum =
     let
-      block = P.takeWhile (\l -> not $ Text.isPrefixOf "   $ " l) xs
+      block = P.map (Text.drop 6) $ P.takeWhile (\l -> not $ Text.isPrefixOf "   $ " l) xs
       block_length = P.length block
     in
       if block_length <= 0
         then P.reverse accum
-        else go (P.drop block_length xs) $ (Entry (Text.drop 5 x) $ Text.intercalate "\n" block) : accum
+        else go (P.drop block_length xs) $ (Entry (Text.drop 5 x) $ fixText block) : accum
+
+
+
+-- | Insanity
+-- I'm just doing crazy stuff tonight.
+--
+fixText :: [Text] -> Text
+fixText text = san3
+  where
+  san1 = {-List.nubBy (\x y -> x == y && Text.null x) $-} P.map P.head $ List.groupBy (\x y -> x == y && Text.null x) text
+  san2 = List.foldl' (\acc s -> go acc s) "" san1
+  san3 = Text.dropWhileEnd (=='\n') san2
+  go acc s =
+    case (Text.null acc, s) of
+         (True, _) -> s
+         (_, "")   -> acc <> "\n\n"
+         _         ->
+           if Text.last s == '.'
+              then acc <> s <> "\n"
+              else acc <> s <> " "
+
+
+
+rfcPostEntries :: Text -> ByteString -> Int64 -> [Entry] -> IO ()
+rfcPostEntries api_url api_key resource_id entries = do
+  forM_ entries $ \entry@Entry{..} -> do
+    let
+      ln_data = LnDCard $ DCard entryName entryDef
+
+      tags = [toSafeUrl entryName, "ctx-definition"]
+      leuron_req = defaultLeuronRequest {
+        leuronRequestData = ln_data,
+        leuronRequestTags = tags
+      }
+    lr <- runWith (postLeuron_ByResourceId' resource_id leuron_req) defaultApiOpts { apiKey = Just api_key, apiUrl = api_url }
+    print lr
+
+
+
+defaultApiOpts :: ApiOptions SpecificApiOptions
+defaultApiOpts = ApiOptions {
+  apiUrl         = "http://dev.adarq.org",
+  apiPrefix      = "api",
+  apiKey         = Nothing,
+  apiKeyHeader   = Just "x-api-authorization",
+  apiOptions     = defaultSpecificApiOptions,
+  apiDebug       = False
+}
