@@ -30,7 +30,6 @@ library
                      , haskell-rehtie
                      , text
                      , unordered-containers
-                     , xml
   default-language:    Haskell2010
 
 executable ingest-cwe-exe

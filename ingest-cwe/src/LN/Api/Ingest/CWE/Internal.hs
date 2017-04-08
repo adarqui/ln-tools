@@ -68,15 +68,15 @@ weaknessToConsequencesBody weakness@CWE_Weakness{..} =
 
       body_scope = case (Prelude.filter (/= "Other") $ catMaybes $ Prelude.map bangText consequenceScope) of
         [] -> Nothing
-        xs -> Just $ "Scope:\n" <> (Text.intercalate "\n- "xs)
+        xs -> Just $ "Scope:\n" <> (Text.intercalate "\n" xs)
 
       body_impact = case (Prelude.filter (/= "Other") $ catMaybes $ Prelude.map bangText consequenceTechnicalImpact) of
         [] -> Nothing
-        xs -> Just $ "Technical Impact:\n" <> (Text.intercalate "\n- " xs)
+        xs -> Just $ "Technical Impact:\n" <> (Text.intercalate "\n" xs)
 
       body_notes = case (Prelude.filter (/= "Other") $ catMaybes $ Prelude.map bangText consequenceNotes) of
         [] -> Nothing
-        xs -> Just $ "Notes:\n" <> (Text.intercalate "\n- " xs)
+        xs -> Just $ "Notes:\n" <> (Text.intercalate "\n" xs)
 
 
 
