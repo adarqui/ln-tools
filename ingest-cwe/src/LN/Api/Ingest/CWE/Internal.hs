@@ -55,6 +55,30 @@ weaknessToDescriptionBody weakness@CWE_Weakness{..} = Text.intercalate "\n\n" $ 
 
 
 
+weaknessToConsequencesBody :: CWE_Weakness -> Maybe Text
+weaknessToConsequencesBody weakness@CWE_Weakness{..} =
+  case weaknessConsequences of
+    Nothing -> Nothing
+    Just consequences@CWE_Consequence{..} ->
+      case catMaybes [body_scope, body_impact, body_notes] of
+        [] -> Nothing
+        xs -> Just $ Text.intercalate "\n\n" xs
+      where
+
+      body_scope = case (Prelude.filter (/= "Other") $ catMaybes $ Prelude.map bangText consequenceScope) of
+        [] -> Nothing
+        xs -> Just $ "Scope:\n" <> (Text.intercalate "\n- "xs)
+
+      body_impact = case (Prelude.filter (/= "Other") $ catMaybes $ Prelude.map bangText consequenceTechnicalImpact) of
+        [] -> Nothing
+        xs -> Just $ "Technical Impact:\n" <> (Text.intercalate "\n- " xs)
+
+      body_notes = case (Prelude.filter (/= "Other") $ catMaybes $ Prelude.map bangText consequenceNotes) of
+        [] -> Nothing
+        xs -> Just $ "Notes:\n" <> (Text.intercalate "\n- " xs)
+
+
+
 weaknessToTimeOfIntroductionBody :: CWE_Weakness -> Text
 weaknessToTimeOfIntroductionBody weakness@CWE_Weakness{..} = Text.intercalate "\n" $ Prelude.map timeOfIntroduction weaknessTimeOfIntroduction
 
@@ -89,6 +113,25 @@ cwePostTimeOfIntroduction api_url api_key resource_id CWE{..} = do
       }
     lr <- runWith (postLeuron_ByResourceId' resource_id leuron_req) defaultApiOpts { apiKey = Just api_key, apiUrl = api_url }
     print lr
+
+
+
+cwePostConsequences :: Text -> ByteString -> Int64 -> CWE -> IO ()
+cwePostConsequences api_url api_key resource_id CWE{..} = do
+  forM_ (Prelude.filter (not . Prelude.null . weaknessConsequences) weaknesses) $ \weakness@CWE_Weakness{..} -> do
+    case weaknessToConsequencesBody weakness of
+      Nothing -> pure ()
+      Just body -> do
+        let
+          ln_data = LnCard $ Card ("CONSEQUENCES: " <> weaknessName) body
+
+          tags = [toSafeUrl weaknessName, "ctx-consequences"]
+          leuron_req = defaultLeuronRequest {
+            leuronRequestData = ln_data,
+            leuronRequestTags = tags
+          }
+        lr <- runWith (postLeuron_ByResourceId' resource_id leuron_req) defaultApiOpts { apiKey = Just api_key, apiUrl = api_url }
+        print lr
 
 
 
