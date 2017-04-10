@@ -2,6 +2,8 @@
 {-# LANGUAGE RecordWildCards   #-}
 
 module LN.Api.Ingest.Shared.Internal (
+  api,
+  defaultApiOpts,
 ) where
 
 
