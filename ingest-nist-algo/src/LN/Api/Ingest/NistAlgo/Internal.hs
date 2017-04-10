@@ -125,7 +125,9 @@ fixBody text = do
   TIO.hPutStr hin text
   hClose hin
   contents <- TIO.hGetContents hout
-  terminateProcess ph
+  hClose hout
+  waitForProcess ph
+  -- terminateProcess ph
   let
     san1 = List.foldl' (\acc fn -> fn acc) contents [Text.replace "Definition:" "Definition: ", Text.replace "See also" "See Also: "]
     r = mkRegex "\\[.+html.*\\]|\\[.+gif.*\\]"
