@@ -10,12 +10,15 @@ module LN.Api.Ingest.Shared.Internal (
 
 import           Control.Monad
 import           Control.Monad.IO.Class     (MonadIO, liftIO)
+import Control.Lens
 import           Data.Aeson
 import           Data.ByteString            (ByteString)
 import qualified Data.ByteString.Lazy       as B
 import           Data.Int                   (Int64)
 import           Data.Maybe                 (catMaybes)
 import           Data.Monoid                ((<>))
+import Network.Wreq
+import Network.HTTP.Client
 import           Data.String.Conversions    (cs)
 import           Data.Text
 import qualified Data.Text                  as Text
@@ -39,6 +42,6 @@ defaultApiOpts = ApiOptions {
   apiPrefix      = "api",
   apiKey         = Nothing,
   apiKeyHeader   = Just "x-api-authorization",
-  apiOptions     = defaultSpecificApiOptions,
+  apiOptions     = (defaultSpecificApiOptions & header "User-Agent" .~ ["Mozilla/5.0 (Android 4.4; Mobile; rv:41.0) Gecko/41.0 Firefox/41.0"]),
   apiDebug       = False
 }

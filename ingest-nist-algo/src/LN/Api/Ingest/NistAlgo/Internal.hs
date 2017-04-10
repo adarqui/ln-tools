@@ -25,7 +25,11 @@ import qualified Data.Text.IO                 as TIO
 import           Network.Wreq
 import           Prelude
 import qualified Prelude                      as P
+import           System.IO
+import           System.Process
 import           Text.HandsomeSoup
+import           Text.Regex
+import           Text.Regex.Base
 import           Text.XML.HXT.Core
 
 import           LN.Api
@@ -59,7 +63,7 @@ runEntries api_url api_key resource_id = do
       all_hrefs <- runX $ doc >>> css "a" >>> (getAttrValue "href" &&& Text.XML.HXT.Core.deep getText)
       let
         hrefs = List.filter (\(href,text) -> "HTML" `List.isPrefixOf` href) all_hrefs
-      mapM_ (runEntry api_url api_key resource_id) $ List.take 6 hrefs
+      mapM_ (runEntry api_url api_key resource_id) hrefs
       pure ()
 
 
@@ -71,12 +75,65 @@ runEntry api_url api_key resource_id (href, name) = do
     Nothing -> pure Nothing
     Just v  -> do
       let
+        (_, h1)   = Text.breakOn "<h1>" $ convertString v
+        (body, _) = Text.breakOn "<hr>" h1
+      fixed_body <- fixBody body
+      let entry = Entry (Text.pack name) fixed_body
+      nistPostEntry api_url api_key resource_id entry
+      pure $ Just entry
+
+
+
+-- | old
+runEntry'' :: Text -> ByteString -> Int64 -> (String, String) -> IO (Maybe Entry)
+runEntry'' api_url api_key resource_id (href, name) = do
+  r <- get $ baseUrl <> href
+  case r ^? responseBody of
+    Nothing -> pure Nothing
+    Just v  -> do
+      let
+        doc = readString [withParseHTML yes, withWarnings no] $ convertString v
+      body <- runX $ doc >>> css "body" //> getText
+      let
+        body_text = Text.intercalate "\n" $ P.map Text.pack body
+      fixed_body_text <- fixBody body_text
+      let entry = Entry (Text.pack name) fixed_body_text
+      nistPostEntry api_url api_key resource_id entry
+      pure $ Just entry
+
+
+
+-- | old
+runEntry' :: Text -> ByteString -> Int64 -> (String, String) -> IO (Maybe Entry)
+runEntry' api_url api_key resource_id (href, name) = do
+  r <- get $ baseUrl <> href
+  case r ^? responseBody of
+    Nothing -> pure Nothing
+    Just v  -> do
+      let
         doc = readString [withParseHTML yes, withWarnings no] $ convertString v
       body <- runX $ doc >>> css "body" >>> removeAllWhiteSpace //> getText
       let entry = Entry (Text.pack name) (fixText $ P.map Text.pack body)
-      print (fixText $ P.map Text.pack body)
       nistPostEntry api_url api_key resource_id entry
       pure $ Just entry
+
+
+
+fixBody :: Text -> IO Text
+fixBody text = do
+  (Just hin, Just hout, _, _) <- createProcess (proc "html-to-text" ["--wordwrap=100000000"]){ std_in = CreatePipe, std_out = CreatePipe }
+  TIO.hPutStr hin text
+  hClose hin
+  contents <- TIO.hGetContents hout
+  let
+    san1 = List.foldl' (\acc fn -> fn acc) contents [Text.replace "Definition:" "Definition: ", Text.replace "See also" "See Also: "]
+    r = mkRegex "\\[.+html.*\\]|\\[.+gif.*\\]"
+    san2 = Text.pack $ subRegex r (Text.unpack san1) ""
+    san3 = Text.replace " ." "." san2
+    san4 = Text.replace "\n " "\n" san3
+    san5 = Text.replace " , " "," san4
+    san6 = Text.replace "  " " " san5
+  pure san6
 
 
 
