@@ -121,19 +121,23 @@ runEntry' api_url api_key resource_id (href, name) = do
 
 fixBody :: Text -> IO Text
 fixBody text = do
-  (Just hin, Just hout, _, _) <- createProcess (proc "html-to-text" ["--wordwrap=100000000"]){ std_in = CreatePipe, std_out = CreatePipe }
+  (Just hin, Just hout, _, ph) <- createProcess (proc "html-to-text" ["--wordwrap=100000000"]){ std_in = CreatePipe, std_out = CreatePipe }
   TIO.hPutStr hin text
   hClose hin
   contents <- TIO.hGetContents hout
+  terminateProcess ph
   let
     san1 = List.foldl' (\acc fn -> fn acc) contents [Text.replace "Definition:" "Definition: ", Text.replace "See also" "See Also: "]
     r = mkRegex "\\[.+html.*\\]|\\[.+gif.*\\]"
     san2 = Text.pack $ subRegex r (Text.unpack san1) ""
     san3 = Text.replace " ." "." san2
     san4 = Text.replace "\n " "\n" san3
-    san5 = Text.replace " , " "," san4
-    san6 = Text.replace "  " " " san5
-  pure san6
+    san5 = Text.replace " , " ", " san4
+    san6 = Text.replace "  *" "\n*" san5
+    san7 = Text.replace "  1" "\n1" san6
+    san8 = Text.replace "  -" "\n-" san7
+    san9 = Text.replace "  " " " san8
+  pure san9
 
 
 
